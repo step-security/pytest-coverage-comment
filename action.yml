@@ -1,0 +1,140 @@
+name: Pytest Coverage Comment
+author: step-security
+description: 'GitHub Action that adds pytest coverage reports as comments to pull requests with badges, test statistics, and direct file links. Requires pull-requests: write permission.'
+inputs:
+  badge-title:
+    description: Text shown on the coverage percentage badge
+    required: false
+    default: Coverage
+  coverage-path-prefix:
+    description: Prefix to add to file paths in coverage report links
+    required: false
+    default: ""
+  create-new-comment:
+    description: Create new comment on each run instead of updating existing comment
+    required: false
+    default: "false"
+  default-branch:
+    description: Base branch name for file links in coverage report (e.g., main, master)
+    required: false
+    default: main
+  github-token:
+    description: 'GitHub token for API access to create/update comments. Ensure your workflow has pull-requests: write permission.'
+    required: true
+    default: ${{ github.token }}
+  hide-badge:
+    description: Hide the coverage percentage badge from the comment
+    required: false
+    default: "false"
+  hide-comment:
+    description: Skip creating PR comment entirely (useful for using outputs only)
+    required: false
+    default: "false"
+  hide-emoji:
+    description: Hide emojis in the test summary table (skipped/failures/errors/time columns)
+    required: false
+    default: "false"
+  hide-report:
+    description: Hide the detailed coverage table (show only summary and badge)
+    required: false
+    default: "false"
+  issue-number:
+    description: Pull request number to comment on (required for workflow_dispatch/workflow_run events)
+    required: false
+    default: ""
+  junitxml-path:
+    description: Path to JUnit XML file for test statistics (passed/failed/skipped)
+    required: false
+    default: ""
+  junitxml-title:
+    description: Title for the test summary section from JUnit XML
+    required: false
+    default: ""
+  max-failed-tests:
+    description: Maximum number of failed tests to show in the comment, in total across all junit files (requires show-failed-tests)
+    required: false
+    default: "30"
+  multiple-files:
+    description: |
+      Generate single comment with multiple coverage reports (useful for monorepos). Format: One report per line as "Title, coverage-path, junit-path". Coverage path can be TXT (from --cov-report=term-missing), XML (from --cov-report=xml), or JSON (from coverage json). Examples: "Backend API, ./backend/coverage.txt, ./backend/junit.xml" "Frontend Tests, ./frontend/coverage.xml, ./frontend/junit.xml"
+    required: false
+    default: ""
+  pytest-coverage-path:
+    description: Path to pytest text coverage output (from --cov-report=term-missing)
+    required: false
+    default: ./pytest-coverage.txt
+  pytest-json-coverage-path:
+    description: Path to JSON coverage report (from coverage json)
+    required: false
+    default: ""
+  pytest-xml-coverage-path:
+    description: Path to XML coverage report (from --cov-report=xml:coverage.xml)
+    required: false
+    default: ""
+  remove-link-from-badge:
+    description: Remove hyperlink from coverage badge (badge becomes plain image)
+    required: false
+    default: "false"
+  remove-links-to-files:
+    description: Remove file links from coverage table to reduce comment size
+    required: false
+    default: "false"
+  remove-links-to-lines:
+    description: Remove line number links from coverage table to reduce comment size
+    required: false
+    default: "false"
+  report-only-changed-files:
+    description: Show only files changed in the current pull request
+    required: false
+    default: "false"
+  show-failed-tests:
+    description: Show names and outputs of failed tests in the comment (requires junitxml-path or junit files in multiple-files)
+    required: false
+    default: "false"
+  text-instead-badge:
+    description: Use simple text instead of badge images for coverage display
+    required: false
+    default: "false"
+  title:
+    description: Main title for the coverage comment (useful for monorepo projects)
+    required: false
+    default: Coverage Report
+  unique-id-for-comment:
+    description: Unique identifier for matrix builds to update separate comments (e.g., matrix.python-version)
+    required: false
+    default: ""
+  xml-skip-covered:
+    description: Hide files with 100% coverage from XML coverage reports
+    required: false
+    default: "false"
+outputs:
+  color:
+    description: Badge color based on coverage percentage (red/orange/yellow/green/brightgreen)
+  coverage:
+    description: Coverage percentage from pytest report (e.g., 85%)
+  coverageHtml:
+    description: Full HTML coverage report with clickable links to uncovered lines
+  errors:
+    description: Number of test errors (from JUnit XML)
+  failedTestsHtml:
+    description: Collapsible HTML block with failed test names and outputs (empty when show-failed-tests is disabled or there are no failures; not published for junit files in multiple-files)
+  failures:
+    description: Number of failed tests (from JUnit XML)
+  notSuccessTestInfo:
+    description: JSON details of failed, errored, and skipped tests (from JUnit XML)
+  skipped:
+    description: Number of skipped tests (from JUnit XML)
+  summaryReport:
+    description: Test summary in markdown format with statistics (tests/skipped/failures/errors/time)
+  tests:
+    description: Total number of tests run (from JUnit XML)
+  time:
+    description: Test execution time in seconds (from JUnit XML)
+  warnings:
+    description: Number of coverage warnings from pytest-cov
+runs:
+  using: node24
+  main: dist/index.js
+branding:
+  icon: message-circle
+  color: blue
