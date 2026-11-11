@@ -41,9 +41,6 @@ inputs:
   issue-number:
     description: Pull request number to comment on (required for workflow_dispatch/workflow_run events)
     required: false
-<<<<<<< aa4c388f47e3b137115e80b13dfc9d295f763547
-    default: ""
-=======
 
   annotate-missing-lines:
     description: 'Add annotations on lines added in the pull request or push that are not covered by tests'
@@ -55,7 +52,6 @@ inputs:
     default: 'warning'
     required: false
 
->>>>>>> 61c5902297529035625250b8f115bb35f1f085e1
   junitxml-path:
     description: Path to JUnit XML file for test statistics (passed/failed/skipped)
     required: false
