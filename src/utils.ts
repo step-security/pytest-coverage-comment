@@ -48,6 +48,26 @@ export const getContentFile = (pathToFile: string | null): string | null => {
   return content;
 };
 
+// escape characters that are unsafe inside generated html
+export const escapeHtml = (text: string): string =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// escape a value placed inside a double-quoted html attribute
+export const escapeHtmlAttr = (text: string): string =>
+  escapeHtml(text).replace(/"/g, '&quot;');
+
+// url-encode each segment of a repo path for use in a link
+// (toWellFormed: a lone utf-16 surrogate makes encodeURIComponent throw)
+export const encodePath = (path: string): string =>
+  path
+    .split('/')
+    .map((segment) => encodeURIComponent(segment.toWellFormed()))
+    .join('/');
+
+// a `..` segment would let a link leave the repo once the browser resolves it
+export const hasParentSegment = (path: string): boolean =>
+  path.split('/').includes('..');
+
 export const getContent = (filePath: string): string | null => {
   try {
     const fullFilePath = getPathToFile(filePath);
@@ -102,3 +122,15 @@ export const getCoverageColor = (
 
   return (found || rangeColors[0]).color;
 };
+
+// group sorted line numbers into consecutive runs, e.g. [4, 5, 9] -> [[4, 5], [9, 9]]
+export const toRuns = (lines: number[]): [number, number][] =>
+  lines.reduce((runs: [number, number][], line) => {
+    const last = runs[runs.length - 1];
+    if (last && line === last[1] + 1) {
+      last[1] = line;
+    } else {
+      runs.push([line, line]);
+    }
+    return runs;
+  }, []);

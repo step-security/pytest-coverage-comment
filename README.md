@@ -2,6 +2,12 @@
 
 # Pytest Coverage Comment
 
+![License](https://img.shields.io/github/license/MishaKav/pytest-coverage-comment)
+![Version](https://img.shields.io/github/package-json/v/MishaKav/pytest-coverage-comment)
+[![Wakatime](https://wakatime.com/badge/user/f838c8aa-c197-42f0-b335-cd1d26159dfd/project/b1e64a51-e518-4b91-bb00-189ffdd444c6.svg)](https://wakatime.com/badge/user/f838c8aa-c197-42f0-b335-cd1d26159dfd/project/b1e64a51-e518-4b91-bb00-189ffdd444c6)
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/MishaKav)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-%E2%98%95-ffdd00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/MishaKav)
+
 A GitHub Action that adds pytest coverage reports as comments to your pull requests, helping you track and improve test coverage with visual feedback.
 
 ## 🎯 Features
@@ -33,6 +39,7 @@ A GitHub Action that adds pytest coverage reports as comments to your pull reque
     - [Coverage from XML](#coverage-from-xml)
     - [Show Failed Tests](#show-failed-tests)
     - [Monorepo Support](#monorepo-support)
+    - [Annotate Uncovered Lines](#annotate-uncovered-lines)
     - [Docker Workflows](#docker-workflows)
     - [Matrix Builds](#matrix-builds)
     - [Auto-update README Badge](#auto-update-readme-badge)
@@ -50,6 +57,12 @@ A GitHub Action that adds pytest coverage reports as comments to your pull reque
     - [GitHub Step Summary Too Large](#github-step-summary-too-large)
     - [Files Not Found](#files-not-found)
     - [Wrong File Links](#wrong-file-links)
+  - [🤝 Contributing](#-contributing)
+    - [Development Setup](#development-setup)
+  - [👥 Contributors](#-contributors)
+  - [💖 Support This Project](#-support-this-project)
+  - [📄 License](#-license)
+  - [🔗 Similar Actions](#-similar-actions)
 
 </details>
 
@@ -121,10 +134,12 @@ jobs:
           pip install pytest pytest-cov
 
       - name: Run tests with coverage
+        shell: bash
         run: |
           pytest --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=src tests/ | tee pytest-coverage.txt
 
       - name: Pytest coverage comment
+        if: ${{ !cancelled() }}
         uses: step-security/pytest-coverage-comment@v1
         with:
           pytest-coverage-path: ./pytest-coverage.txt
@@ -177,13 +192,15 @@ jobs:
 <details>
 <summary>🔧 Advanced Options</summary>
 
-| Name                    | Default | Description                                                                                            |
-| ----------------------- | ------- | ------------------------------------------------------------------------------------------------------ |
-| `create-new-comment`    | `false` | Create new comment on each run instead of updating existing comment                                    |
-| `unique-id-for-comment` |         | Unique identifier for matrix builds to update separate comments (e.g., `${{ matrix.python-version }}`) |
-| `default-branch`        | `main`  | Base branch name for file links in coverage report (e.g., main, master)                                |
-| `coverage-path-prefix`  |         | Prefix to add to file paths in coverage report links                                                   |
-| `multiple-files`        |         | Generate single comment with multiple coverage reports (useful for monorepos)                          |
+| Name                     | Default   | Description                                                                                                 |
+| ------------------------ | --------- | ----------------------------------------------------------------------------------------------------------- |
+| `create-new-comment`     | `false`   | Create new comment on each run instead of updating existing comment                                         |
+| `unique-id-for-comment`  |           | Unique identifier for matrix builds to update separate comments (e.g., `${{ matrix.python-version }}`)      |
+| `default-branch`         | `main`    | Base branch name for file links in coverage report (e.g., main, master)                                     |
+| `coverage-path-prefix`   |           | Prefix to add to file paths in coverage report links                                                        |
+| `multiple-files`         |           | Generate single comment with multiple coverage reports (useful for monorepos)                               |
+| `annotate-missing-lines` | `false`   | Annotate lines added in the PR or push that are not covered by tests ([details](#annotate-uncovered-lines)) |
+| `annotation-type`        | `warning` | Annotation level for `annotate-missing-lines`: `notice`, `warning` or `error`                               |
 
 </details>
 
@@ -218,10 +235,12 @@ jobs:
 
 ```yaml
 - name: Run tests
+  shell: bash
   run: |
     pytest --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=src tests/ | tee pytest-coverage.txt
 
 - name: Coverage comment
+  if: ${{ !cancelled() }}
   uses: step-security/pytest-coverage-comment@v1
   with:
     pytest-coverage-path: ./pytest-coverage.txt
@@ -367,6 +386,40 @@ This creates a consolidated table showing all coverage reports:
 
 </details>
 
+### Annotate Uncovered Lines
+
+<details>
+<summary>Mark uncovered new lines in the "Files changed" tab, with or without a comment</summary>
+
+```yaml
+- name: Coverage annotations
+  uses: step-security/pytest-coverage-comment@v1
+  with:
+    pytest-xml-coverage-path: ./coverage.xml
+    annotate-missing-lines: true
+    hide-comment: true # optional: annotations only, no PR comment
+```
+
+Only lines added in the pull request (or push) that the coverage report marks as missing get an annotation, right below the code in the diff:
+
+```
+⚠ Missing coverage
+  Lines 42-45 are not covered by tests
+⚠ Partial branch coverage
+  Line 51 has a branch not covered by tests: 51->exit
+```
+
+Notes:
+
+- Works on `pull_request`, `pull_request_target` and `push` events, with txt, xml or json coverage (not `multiple-files`)
+- GitHub shows at most 10 annotations of each level per step, the rest are listed in the job log
+- txt reports merge missing ranges across blank lines and comments, so those can be annotated too. Use xml or json for exact lines
+- File paths in the coverage report must match the repo paths, use `coverage-path-prefix` (e.g. `src/`) when they don't
+- GitHub leaves out the diff of binary and very large files, those are not annotated, and the compare API lists at most 300 files
+- On `pull_request`, `actions/checkout` tests the merge commit by default. If the base branch changed the same file since the PR branched off, line numbers can shift; check out the PR head (`ref: ${{ github.event.pull_request.head.sha }}`) to keep them exact
+
+</details>
+
 ### Docker Workflows
 
 <details>
@@ -374,6 +427,7 @@ This creates a consolidated table showing all coverage reports:
 
 ```yaml
 - name: Run tests in Docker
+  shell: bash
   run: |
     docker run -v /tmp:/tmp $IMAGE_TAG \
       python -m pytest \
@@ -382,6 +436,7 @@ This creates a consolidated table showing all coverage reports:
         --cov=src tests/ | tee /tmp/pytest-coverage.txt
 
 - name: Coverage comment
+  if: ${{ !cancelled() }}
   uses: step-security/pytest-coverage-comment@v1
   with:
     pytest-coverage-path: /tmp/pytest-coverage.txt
@@ -446,6 +501,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run tests
+        shell: bash
         run: |
           pytest --junitxml=pytest.xml --cov-report=term-missing --cov=src tests/ | tee pytest-coverage.txt
 
@@ -747,3 +803,68 @@ Make sure the installation step runs before executing pytest commands in your wo
 
 </details>
 
+## 🤝 Contributing
+
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
+
+We welcome all contributions! Please feel free to submit [pull requests](https://github.com/MishaKav/pytest-coverage-comment/pulls) or open [issues](https://github.com/MishaKav/pytest-coverage-comment/issues) for bugs, feature requests, or improvements.
+
+### Development Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/MishaKav/pytest-coverage-comment.git
+cd pytest-coverage-comment
+
+# Install dependencies
+npm install
+
+# Run tests (if available)
+npm test
+
+# Build the action
+npm run build
+```
+
+## 👥 Contributors
+
+<a href="https://github.com/MishaKav/pytest-coverage-comment/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=MishaKav/pytest-coverage-comment" alt="Contributors" />
+</a>
+
+## 💖 Support This Project
+
+This action is free and open source, maintained in my spare time. If it saves you time or you use it at work, consider supporting its development — every bit helps keep it maintained and improving.
+
+<div align="center">
+
+[![GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-%E2%9D%A4%20Sponsor-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/MishaKav)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-%E2%98%95-ffdd00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/MishaKav)
+[![PayPal](https://img.shields.io/badge/PayPal-Donate-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://paypal.me/MishaKav)
+
+</div>
+
+- **[GitHub Sponsors](https://github.com/sponsors/MishaKav)** — monthly or one-time, right here on GitHub (works with company billing too)
+- **[Buy Me a Coffee](https://buymeacoffee.com/MishaKav)** — a quick one-off ☕ to say thanks
+- **[PayPal](https://paypal.me/MishaKav)** — direct one-time donation
+
+Not able to sponsor? A ⭐ on the repo, a [bug report](https://github.com/MishaKav/pytest-coverage-comment/issues), or sharing the action with your team helps just as much.
+
+## 📄 License
+
+MIT © [Misha Kav](https://github.com/MishaKav)
+
+---
+
+## 🔗 Similar Actions
+
+**For JavaScript/TypeScript projects using Jest:**
+Check out [jest-coverage-comment](https://github.com/marketplace/actions/jest-coverage-comment) - a similar action with even more features for Jest test coverage.
+
+---
+
+<div align="center">
+
+**If you find this action helpful, please consider giving it a ⭐ on [GitHub](https://github.com/MishaKav/pytest-coverage-comment) or [buying me a coffee ☕](https://buymeacoffee.com/MishaKav)!**
+
+</div>

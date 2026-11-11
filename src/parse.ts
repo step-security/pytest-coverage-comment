@@ -1,5 +1,12 @@
 import * as core from '@actions/core';
-import { getPathToFile, getContentFile, getCoverageColor } from './utils';
+import {
+  getPathToFile,
+  getContentFile,
+  getCoverageColor,
+  escapeHtmlAttr,
+  encodePath,
+  hasParentSegment,
+} from './utils';
 import type {
   Options,
   CoverageLine,
@@ -54,9 +61,11 @@ export const getCoverageReport = (options: Options): CoverageReport => {
         const html = toHtml(content, options);
         const total = getTotal(content);
         const warnings = getWarnings(content);
-        const color = getCoverageColor(total ? total.cover : '0');
+        const color = getCoverageColor(toBadgeCover(total ? total.cover : '0'));
 
-        return { html, coverage, color, warnings: warnings ?? 0 };
+        const lines = parse(content) ?? [];
+
+        return { html, coverage, color, warnings: warnings ?? 0, lines };
       }
     } catch (error) {
       core.error(`Generating coverage report. ${(error as Error).message}`);
@@ -215,7 +224,8 @@ const makeFolders = (
   coverage: CoverageLine[],
   options: Options,
 ): Record<string, CoverageLine[]> => {
-  const folders: Record<string, CoverageLine[]> = {};
+  // no prototype, a folder named e.g. `constructor` must not hit Object members
+  const folders: Record<string, CoverageLine[]> = Object.create(null);
 
   for (const line of coverage) {
     const parts = line.name.replace(options.prefix, '').split('/');
@@ -227,6 +237,11 @@ const makeFolders = (
 
   return folders;
 };
+
+// report values are untrusted (e.g. from a fork PR), only a number may
+// reach the badge, other text could fake its message or color
+const toBadgeCover = (cover: string): string =>
+  /^\d+(\.\d+)?%?$/.test(cover) ? cover : '0';
 
 // gets total coverage in percentage
 const getTotalCoverage = (data: string | null): string => {
@@ -257,10 +272,11 @@ export const toHtml = (
     return '';
   }
 
-  const color = getCoverageColor(total.cover);
   const onlyChanged = reportOnlyChangedFiles ? '\u2022 ' : '';
   const readmeHref = `${options.repoUrl}/blob/${options.commit}/README.md`;
-  const badge = `<img alt="${badgeTitle}" src="https://img.shields.io/badge/${badgeTitle}-${total.cover}25-${color}.svg" />`;
+  const cover = toBadgeCover(total.cover);
+  const color = getCoverageColor(cover);
+  const badge = `<img alt="${badgeTitle}" src="https://img.shields.io/badge/${badgeTitle}-${cover}25-${color}.svg" />`;
   const badgeWithLink = removeLinkFromBadge
     ? badge
     : `<a href="${readmeHref}">${badge}</a>`;
@@ -274,14 +290,22 @@ export const toHtml = (
   const brpart = dataFromXml && total.brpart ? parseInt(total.brpart) : 0;
   const covered = stmts - miss + (branch - brpart);
   const totalCount = stmts + branch;
-  const textBadge = `${total.cover} (${covered}/${totalCount})`;
+  const textBadge = `${cover} (${covered}/${totalCount})`;
   const badgeContent = textInsteadBadge ? textBadge : badgeWithLink;
   const badgeHtml = hideBadge ? '' : badgeContent;
   const reportHtml = hideReport
     ? ''
     : `<details><summary>${title} ${onlyChanged}</summary>${table}</details>`;
 
-  return `${badgeHtml}${reportHtml}`;
+  if (!reportHtml) {
+    return badgeHtml;
+  }
+
+  // a line starting with an html comment is a raw html block, so github
+  // doesn't parse markdown in the table cells. The block ends with the line,
+  // so text after it (e.g. in a readme) still renders as markdown
+  const badgeLine = badgeHtml ? `<p>${badgeHtml}</p>` : '';
+  return `<!-- pytest-coverage-comment -->${badgeLine}${reportHtml}`;
 };
 
 // make html table from coverage-file
@@ -353,6 +377,11 @@ const toHeadRow = (options: Options): string => {
   return `<tr><th>File</th><th>Stmts</th><th>Miss</th>${branchTh}<th>Cover</th>${missingTh}</tr>`;
 };
 
+// escape a report value for html text or attributes, a line break would
+// end the html block
+const escapeValue = (value: string | number): string =>
+  escapeHtmlAttr(String(value)).replace(/[\r\n]+/g, ' ');
+
 // make html row - tr
 const toRow = (
   item: CoverageLine,
@@ -364,25 +393,42 @@ const toRow = (
   const name = toFileNameTd(item, indent, options);
   const missing = toMissingTd(item, options);
   const branchTd = options.hasBranch
-    ? `<td>${item.branch || 0}</td><td>${item.brpart || 0}</td>`
+    ? `<td>${escapeValue(item.branch || 0)}</td><td>${escapeValue(item.brpart || 0)}</td>`
     : '';
   const missingTd = options.hasMissing ? `<td>${missing}</td>` : '';
 
   // prettier-ignore
-  return `<tr><td>${name}</td><td>${stmts}</td><td>${miss}</td>${branchTd}<td>${cover}</td>${missingTd}</tr>`;
+  return `<tr><td>${name}</td><td>${escapeValue(stmts)}</td><td>${escapeValue(miss)}</td>${branchTd}<td>${escapeValue(cover)}</td>${missingTd}</tr>`;
 };
 
 // make summary row - tr
 const toTotalRow = (item: TotalLine, options: Options): string => {
   const { name, stmts, miss, cover } = item;
   const branchTd = options.hasBranch
-    ? `<td><b>${item.branch || 0}</b></td>` +
-      `<td><b>${item.brpart || 0}</b></td>`
+    ? `<td><b>${escapeValue(item.branch || 0)}</b></td>` +
+      `<td><b>${escapeValue(item.brpart || 0)}</b></td>`
     : '';
   const missingTd = options.hasMissing ? '<td>&nbsp;</td>' : '';
 
   // prettier-ignore
-  return `<tr><td><b>${name}</b></td><td><b>${stmts}</b></td><td><b>${miss}</b></td>${branchTd}<td><b>${cover}</b></td>${missingTd}</tr>`;
+  return `<tr><td><b>${escapeValue(name)}</b></td><td><b>${escapeValue(stmts)}</b></td><td><b>${escapeValue(miss)}</b></td>${branchTd}<td><b>${escapeValue(cover)}</b></td>${missingTd}</tr>`;
+};
+
+// path of a report file relative to the workspace, with `/` separators
+// (windows reports use `\`, browsers treat it as `/` in links)
+export const toRelativePath = (
+  name: string,
+  options: Pick<Options, 'prefix'>,
+): string =>
+  name.replace(/\\/g, '/').replace(options.prefix.replace(/\\/g, '/'), '');
+
+// link to a file of the report in the repo, null when it can't be linked safely
+const toFileHref = (name: string, options: Options): string | null => {
+  const relative = toRelativePath(name, options);
+
+  return hasParentSegment(relative)
+    ? null
+    : `${options.repoUrl}/blob/${options.commit}/${options.pathPrefix}${encodePath(relative)}`;
 };
 
 // make fileName cell - td
@@ -392,15 +438,15 @@ const toFileNameTd = (
   options: Options,
 ): string => {
   const relative = item.name.replace(options.prefix, '');
-  const href = `${options.repoUrl}/blob/${options.commit}/${options.pathPrefix}${relative}`;
+  const href = toFileHref(item.name, options);
   const parts = relative.split('/');
   const last = parts[parts.length - 1];
   const space = indent ? '&nbsp; &nbsp;' : '';
-  const fileName = last.replace(/__/g, '\\_\\_');
+  const fileName = escapeValue(last);
 
-  return options.removeLinksToFiles
+  return options.removeLinksToFiles || !href
     ? `${space}${fileName}`
-    : `${space}<a href="${href}">${fileName}</a>`;
+    : `${space}<a href="${escapeValue(href)}">${fileName}</a>`;
 };
 
 // make folder row - tr
@@ -411,7 +457,7 @@ const toFolderTd = (path: string, options: Options): string => {
 
   const colspan =
     4 + (options.hasBranch ? 2 : 0) + (options.hasMissing ? 1 : 0);
-  return `<tr><td colspan="${colspan}"><b>${path}</b></td></tr>`;
+  return `<tr><td colspan="${colspan}"><b>${escapeValue(path)}</b></td></tr>`;
 };
 
 // make missing cell - td
@@ -420,28 +466,32 @@ const toMissingTd = (item: CoverageLine, options: Options): string => {
     return '&nbsp;';
   }
 
+  const fileHref = toFileHref(item.name, options);
+  const removeLinks = options.removeLinksToLines || !fileHref;
+
   return item.missing
     .map((range) => {
-      const relative = item.name;
-
       // Partial branch, e.g. `158->182` or `158->exit`: link to the source
       // line and keep the arrow text as-is.
       if (range.includes('->')) {
         const [start] = range.split('->');
-        const href = `${options.repoUrl}/blob/${options.commit}/${options.pathPrefix}${relative}#L${start}`;
-        return options.removeLinksToLines
-          ? range
-          : `<a href="${href}">${range}</a>`;
+        const href = `${fileHref}#L${start}`;
+        // keep the arrow as coverage.py prints it, a bare `>` is safe in text
+        const text = range.split('->').map(escapeValue).join('->');
+        return removeLinks
+          ? text
+          : `<a href="${escapeValue(href)}">${text}</a>`;
       }
 
       const [start, end = start] = range.split('-');
       const fragment = start === end ? `L${start}` : `L${start}-L${end}`;
-      const href = `${options.repoUrl}/blob/${options.commit}/${options.pathPrefix}${relative}#${fragment}`;
-      const text = start === end ? start : `${start}&ndash;${end}`;
+      const href = `${fileHref}#${fragment}`;
+      const text =
+        start === end
+          ? escapeValue(start)
+          : `${escapeValue(start)}&ndash;${escapeValue(end)}`;
 
-      return options.removeLinksToLines
-        ? text
-        : `<a href="${href}">${text}</a>`;
+      return removeLinks ? text : `<a href="${escapeValue(href)}">${text}</a>`;
     })
     .join(', ');
 };

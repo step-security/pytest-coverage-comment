@@ -5,6 +5,10 @@ import {
   getContentFile,
   getContent,
   getCoverageColor,
+  escapeHtml,
+  escapeHtmlAttr,
+  encodePath,
+  hasParentSegment,
 } from '../src/utils';
 import { spyCore } from './setup';
 
@@ -145,5 +149,46 @@ describe('getCoverageColor', () => {
 
   test('should default to red for NaN', () => {
     expect(getCoverageColor('abc')).toBe('red');
+  });
+});
+
+describe('escapeHtml', () => {
+  test('should escape &, < and >', () => {
+    expect(escapeHtml('a & <b>"c"</b>')).toBe('a &amp; &lt;b&gt;"c"&lt;/b&gt;');
+  });
+
+  test('should leave plain text unchanged', () => {
+    expect(escapeHtml('src/app.py')).toBe('src/app.py');
+  });
+});
+
+describe('escapeHtmlAttr', () => {
+  test('should also escape double quotes', () => {
+    expect(escapeHtmlAttr('a"><b>')).toBe('a&quot;&gt;&lt;b&gt;');
+  });
+});
+
+describe('encodePath', () => {
+  test('should encode each segment and keep slashes', () => {
+    expect(encodePath('tests/my file#1.py')).toBe('tests/my%20file%231.py');
+  });
+
+  test('should leave a plain path unchanged', () => {
+    expect(encodePath('src/utils/helpers.py')).toBe('src/utils/helpers.py');
+  });
+
+  test('should not throw on a lone surrogate', () => {
+    expect(encodePath('src/\ud800.py')).toBe('src/%EF%BF%BD.py');
+  });
+});
+
+describe('hasParentSegment', () => {
+  test('should detect a .. segment', () => {
+    expect(hasParentSegment('../a/b.py')).toBe(true);
+    expect(hasParentSegment('a/../b.py')).toBe(true);
+  });
+
+  test('should allow regular paths', () => {
+    expect(hasParentSegment('src/..a/b..py')).toBe(false);
   });
 });
