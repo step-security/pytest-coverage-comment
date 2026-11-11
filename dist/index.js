@@ -5327,7 +5327,7 @@ exports.colors = [6, 2, 3, 4, 5, 1];
 try {
 	// Optional dependency (as in, doesn't need to be installed, NOT like optionalDependencies in package.json)
 	// eslint-disable-next-line import/no-extraneous-dependencies
-	const supportsColor = __nccwpck_require__(1450);
+	const supportsColor = __nccwpck_require__(75);
 
 	if (supportsColor && (supportsColor.stderr || supportsColor).level >= 2) {
 		exports.colors = [
@@ -5785,7 +5785,7 @@ module.exports = ReferenceError;
 
 /***/ }),
 
-/***/ 105:
+/***/ 2486:
 /***/ ((module) => {
 
 "use strict";
@@ -7265,7 +7265,7 @@ var $Error = __nccwpck_require__(1620);
 var $EvalError = __nccwpck_require__(3056);
 var $RangeError = __nccwpck_require__(4585);
 var $ReferenceError = __nccwpck_require__(6905);
-var $SyntaxError = __nccwpck_require__(105);
+var $SyntaxError = __nccwpck_require__(2486);
 var $TypeError = __nccwpck_require__(3314);
 var $URIError = __nccwpck_require__(2578);
 
@@ -7729,22 +7729,6 @@ if ($gOPD) {
 }
 
 module.exports = $gOPD;
-
-
-/***/ }),
-
-/***/ 3813:
-/***/ ((module) => {
-
-"use strict";
-
-
-module.exports = (flag, argv = process.argv) => {
-	const prefix = flag.startsWith('-') ? '' : (flag.length === 1 ? '-' : '--');
-	const position = argv.indexOf(prefix + flag);
-	const terminatorPosition = argv.indexOf('--');
-	return position !== -1 && (terminatorPosition === -1 || position < terminatorPosition);
-};
 
 
 /***/ }),
@@ -10474,149 +10458,6 @@ function plural(ms, msAbs, n, name) {
     })()
   }
 })( false ? (0) : exports)
-
-
-/***/ }),
-
-/***/ 1450:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-"use strict";
-
-const os = __nccwpck_require__(857);
-const tty = __nccwpck_require__(2018);
-const hasFlag = __nccwpck_require__(3813);
-
-const {env} = process;
-
-let forceColor;
-if (hasFlag('no-color') ||
-	hasFlag('no-colors') ||
-	hasFlag('color=false') ||
-	hasFlag('color=never')) {
-	forceColor = 0;
-} else if (hasFlag('color') ||
-	hasFlag('colors') ||
-	hasFlag('color=true') ||
-	hasFlag('color=always')) {
-	forceColor = 1;
-}
-
-if ('FORCE_COLOR' in env) {
-	if (env.FORCE_COLOR === 'true') {
-		forceColor = 1;
-	} else if (env.FORCE_COLOR === 'false') {
-		forceColor = 0;
-	} else {
-		forceColor = env.FORCE_COLOR.length === 0 ? 1 : Math.min(parseInt(env.FORCE_COLOR, 10), 3);
-	}
-}
-
-function translateLevel(level) {
-	if (level === 0) {
-		return false;
-	}
-
-	return {
-		level,
-		hasBasic: true,
-		has256: level >= 2,
-		has16m: level >= 3
-	};
-}
-
-function supportsColor(haveStream, streamIsTTY) {
-	if (forceColor === 0) {
-		return 0;
-	}
-
-	if (hasFlag('color=16m') ||
-		hasFlag('color=full') ||
-		hasFlag('color=truecolor')) {
-		return 3;
-	}
-
-	if (hasFlag('color=256')) {
-		return 2;
-	}
-
-	if (haveStream && !streamIsTTY && forceColor === undefined) {
-		return 0;
-	}
-
-	const min = forceColor || 0;
-
-	if (env.TERM === 'dumb') {
-		return min;
-	}
-
-	if (process.platform === 'win32') {
-		// Windows 10 build 10586 is the first Windows release that supports 256 colors.
-		// Windows 10 build 14931 is the first release that supports 16m/TrueColor.
-		const osRelease = os.release().split('.');
-		if (
-			Number(osRelease[0]) >= 10 &&
-			Number(osRelease[2]) >= 10586
-		) {
-			return Number(osRelease[2]) >= 14931 ? 3 : 2;
-		}
-
-		return 1;
-	}
-
-	if ('CI' in env) {
-		if (['TRAVIS', 'CIRCLECI', 'APPVEYOR', 'GITLAB_CI', 'GITHUB_ACTIONS', 'BUILDKITE'].some(sign => sign in env) || env.CI_NAME === 'codeship') {
-			return 1;
-		}
-
-		return min;
-	}
-
-	if ('TEAMCITY_VERSION' in env) {
-		return /^(9\.(0*[1-9]\d*)\.|\d{2,}\.)/.test(env.TEAMCITY_VERSION) ? 1 : 0;
-	}
-
-	if (env.COLORTERM === 'truecolor') {
-		return 3;
-	}
-
-	if ('TERM_PROGRAM' in env) {
-		const version = parseInt((env.TERM_PROGRAM_VERSION || '').split('.')[0], 10);
-
-		switch (env.TERM_PROGRAM) {
-			case 'iTerm.app':
-				return version >= 3 ? 3 : 2;
-			case 'Apple_Terminal':
-				return 2;
-			// No default
-		}
-	}
-
-	if (/-256(color)?$/i.test(env.TERM)) {
-		return 2;
-	}
-
-	if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(env.TERM)) {
-		return 1;
-	}
-
-	if ('COLORTERM' in env) {
-		return 1;
-	}
-
-	return min;
-}
-
-function getSupportLevel(stream) {
-	const level = supportsColor(stream, stream && stream.isTTY);
-	return translateLevel(level);
-}
-
-module.exports = {
-	supportsColor: getSupportLevel,
-	stdout: translateLevel(supportsColor(true, tty.isatty(1))),
-	stderr: translateLevel(supportsColor(true, tty.isatty(2)))
-};
 
 
 /***/ }),
@@ -43728,6 +43569,212 @@ module.exports = {
 
 /***/ }),
 
+/***/ 105:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.annotateMissingLines = exports.getAnnotations = exports.getAddedLines = exports.ANNOTATION_EVENTS = exports.ANNOTATION_TYPES = exports.MAX_ANNOTATIONS = void 0;
+const core = __importStar(__nccwpck_require__(7484));
+const parse_1 = __nccwpck_require__(2828);
+const utils_1 = __nccwpck_require__(1798);
+// github shows at most 10 annotations of each type per step (50 per job)
+exports.MAX_ANNOTATIONS = 10;
+exports.ANNOTATION_TYPES = [
+    'notice',
+    'warning',
+    'error',
+];
+// annotations need a base..head diff of the commit the run belongs to
+exports.ANNOTATION_EVENTS = [
+    'pull_request',
+    'pull_request_target',
+    'push',
+];
+// line numbers added in the head version of a file, from its unified diff
+const getAddedLines = (patch) => {
+    const added = [];
+    let inHunk = false;
+    let line = 0;
+    for (const text of (patch || '').split('\n')) {
+        const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(text);
+        if (hunk) {
+            inHunk = true;
+            line = parseInt(hunk[1], 10);
+        }
+        else if (inHunk && text.startsWith('+')) {
+            added.push(line++);
+        }
+        else if (inHunk && text.startsWith(' ')) {
+            line++;
+        }
+        // `-` lines only exist in the base, `\ No newline at end of file` is a marker
+    }
+    return added;
+};
+exports.getAddedLines = getAddedLines;
+// split the "Missing" entries into line ranges and partial branch arcs
+// keyed by their source line, e.g. ["4", "10-12", "7->exit"]
+const parseMissing = (missing) => {
+    const ranges = [];
+    const arcs = new Map();
+    // report values are untrusted, keep only well-formed entries so a message
+    // never carries anything but numbers (and `exit`)
+    for (const entry of new Set(missing.map((m) => String(m).trim()))) {
+        const arc = /^(\d+)->(\d+|exit)$/.exec(entry);
+        if (arc) {
+            const from = Number(arc[1]);
+            const branches = arcs.get(from) || [];
+            branches.push(entry);
+            arcs.set(from, branches);
+            continue;
+        }
+        const range = /^(\d+)(?:-(\d+))?$/.exec(entry);
+        if (range) {
+            ranges.push([Number(range[1]), Number(range[2] ?? range[1])]);
+        }
+    }
+    return { ranges, arcs };
+};
+// annotations for uncovered lines that the diff added, `addedLines` is keyed
+// by the full repo path (with `coverage-path-prefix`)
+const getAnnotations = (coverage, addedLines, options) => {
+    const annotations = [];
+    // xml reports can list one file in several classes, merge them per file.
+    // json reports keep arcs to missing lines out of `missing`, add them back
+    const missingByFile = new Map();
+    for (const item of coverage) {
+        // the diff uses `/`, a windows-style prefix would never match
+        const prefix = options.pathPrefix.replace(/\\/g, '/');
+        const file = `${prefix}${(0, parse_1.toRelativePath)(item.name, options)}`;
+        missingByFile.set(file, [
+            ...(missingByFile.get(file) ?? []),
+            ...(item.missing ?? []),
+            ...(item.missingBranches ?? []),
+        ]);
+    }
+    for (const [file, missing] of missingByFile) {
+        // sorted and unique, see getAddedLines. Own keys only, a report file
+        // named e.g. `constructor` must not hit Object members
+        const added = Object.hasOwn(addedLines, file)
+            ? addedLines[file]
+            : undefined;
+        if (!missing.length || !added?.length) {
+            continue;
+        }
+        const addedSet = new Set(added);
+        const { ranges, arcs } = parseMissing(missing);
+        const uncovered = added.filter((line) => ranges.some(([s, e]) => line >= s && line <= e));
+        const uncoveredSet = new Set(uncovered);
+        const fileAnnotations = [];
+        (0, utils_1.toRuns)(uncovered).forEach(([startLine, endLine]) => {
+            const lines = startLine === endLine
+                ? `Line ${startLine} is`
+                : `Lines ${startLine}-${endLine} are`;
+            fileAnnotations.push({
+                file,
+                startLine,
+                endLine,
+                title: 'Missing coverage',
+                message: `${lines} not covered by tests`,
+            });
+        });
+        // a branch from an uncovered line is already part of that annotation
+        arcs.forEach((branches, line) => {
+            if (!addedSet.has(line) || uncoveredSet.has(line)) {
+                return;
+            }
+            const noun = branches.length === 1 ? 'a branch' : 'branches';
+            fileAnnotations.push({
+                file,
+                startLine: line,
+                endLine: line,
+                title: 'Partial branch coverage',
+                message: `Line ${line} has ${noun} not covered by tests: ${branches.join(', ')}`,
+            });
+        });
+        fileAnnotations.sort((a, b) => a.startLine - b.startLine);
+        annotations.push(...fileAnnotations);
+    }
+    return annotations;
+};
+exports.getAnnotations = getAnnotations;
+// annotate the lines added in this diff that the coverage report marks as missing
+const annotateMissingLines = (coverage, options) => {
+    const addedLines = options.changedFiles?.addedLines;
+    if (!addedLines) {
+        return;
+    }
+    // the type picks a `core` function, never call anything but an annotation
+    const type = exports.ANNOTATION_TYPES.includes(options.annotationType)
+        ? options.annotationType
+        : 'warning';
+    core.startGroup('Annotations');
+    try {
+        const annotations = (0, exports.getAnnotations)(coverage, addedLines, options);
+        if (!annotations.length) {
+            core.info('No uncovered lines found in the changed code');
+        }
+        annotations.slice(0, exports.MAX_ANNOTATIONS).forEach((a) => {
+            const { file, startLine, endLine, title, message } = a;
+            core[type](message, { title, file, startLine, endLine });
+        });
+        const rest = annotations.slice(exports.MAX_ANNOTATIONS);
+        if (rest.length) {
+            // prettier-ignore
+            core.info(`${rest.length} more annotations were not created, GitHub shows at most ${exports.MAX_ANNOTATIONS} ${type} annotations per step:`);
+            // a file name can hold a newline, keep each entry on its own log line
+            // so it can't start a workflow command
+            rest.forEach((a) => core.info(`${JSON.stringify(a.file)}:${a.startLine} ${JSON.stringify(a.message)}`));
+        }
+    }
+    catch (error) {
+        // prettier-ignore
+        core.error(`Error creating annotations for missing lines. ${error.message}`);
+    }
+    finally {
+        core.endGroup();
+    }
+};
+exports.annotateMissingLines = annotateMissingLines;
+
+
+/***/ }),
+
 /***/ 9407:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -43775,6 +43822,7 @@ const parseXml_1 = __nccwpck_require__(1775);
 const parseJson_1 = __nccwpck_require__(7258);
 const junitXml_1 = __nccwpck_require__(5394);
 const multiFiles_1 = __nccwpck_require__(6211);
+const annotations_1 = __nccwpck_require__(105);
 const subscription_1 = __nccwpck_require__(9470);
 exports.MAX_COMMENT_LENGTH = 65536;
 const MAX_SUMMARY_LENGTH = 1024 * 1024; // 1MB limit for GitHub step summary
@@ -43973,6 +44021,20 @@ const main = async () => {
     const multipleFiles = core.getMultilineInput('multiple-files', {
         required: false,
     });
+    const annotateMissingLines = core.getBooleanInput('annotate-missing-lines', {
+        required: false,
+    });
+    const annotationTypeInput = core.getInput('annotation-type', {
+        required: false,
+    });
+    const isAnnotationType = annotations_1.ANNOTATION_TYPES.includes(annotationTypeInput);
+    if (annotationTypeInput && !isAnnotationType) {
+        // prettier-ignore
+        core.warning(`Invalid "annotation-type" input "${annotationTypeInput}", should be one of ${annotations_1.ANNOTATION_TYPES.join(', ')}. Will use "warning"`);
+    }
+    const annotationType = isAnnotationType
+        ? annotationTypeInput
+        : 'warning';
     const { context } = github;
     const { repo, owner } = context.repo;
     const { eventName, payload } = context;
@@ -44010,6 +44072,8 @@ const main = async () => {
         showFailedTests,
         maxFailedTests,
         multipleFiles,
+        annotateMissingLines,
+        annotationType,
     };
     options.repoUrl =
         payload.repository?.html_url || `${serverUrl}/${options.repository}`;
@@ -44036,7 +44100,12 @@ const main = async () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         options.head = payload.workflow_run.head_branch;
     }
-    if (options.reportOnlyChangedFiles) {
+    if (options.annotateMissingLines && !annotations_1.ANNOTATION_EVENTS.includes(eventName)) {
+        // prettier-ignore
+        core.warning(`\`annotate-missing-lines: true\` supports only ${annotations_1.ANNOTATION_EVENTS.map((e) => `\`${e}\``).join(', ')} events. \`${eventName}\` events are not supported.`);
+        options.annotateMissingLines = false;
+    }
+    if (options.reportOnlyChangedFiles || options.annotateMissingLines) {
         const changedFiles = await getChangedFiles(options, issueNumberInput);
         options.changedFiles = changedFiles;
         // when github event is different from `pull_request`, `workflow_dispatch`, `workflow_run` or `push`
@@ -44056,6 +44125,17 @@ const main = async () => {
     }
     if (!report) {
         report = { html: '', coverage: null, color: 'red' };
+    }
+    if (options.annotateMissingLines) {
+        const { lines } = report;
+        if (lines) {
+            (0, annotations_1.annotateMissingLines)(lines, options);
+        }
+        else {
+            // e.g. only `multiple-files`, don't report the new code as covered
+            // prettier-ignore
+            core.warning('`annotate-missing-lines: true` needs a coverage report from `pytest-coverage-path`, `pytest-xml-coverage-path` or `pytest-json-coverage-path`, no annotations were added. `multiple-files` reports are not annotated.');
+        }
     }
     const { coverage, color } = report;
     let { html } = report;
@@ -44291,6 +44371,8 @@ const main = async () => {
 };
 // generate object of all files that changed based on commit through Github API
 const getChangedFiles = async (options, pr_number) => {
+    // the diff is optional for annotations, don't fail the job when only they need it
+    const fail = options.reportOnlyChangedFiles ? core.setFailed : core.warning;
     try {
         const { context } = github;
         const { eventName, payload } = context;
@@ -44350,16 +44432,26 @@ const getChangedFiles = async (options, pr_number) => {
         }
         // Ensure that the request was successful.
         if (response.status !== 200) {
-            core.setFailed(`The GitHub API for comparing the base and head commits for this ${eventName} event returned ${response.status}, expected 200. ` +
+            fail(`The GitHub API for comparing the base and head commits for this ${eventName} event returned ${response.status}, expected 200. ` +
                 "Please submit an issue on this action's GitHub repo.");
         }
         // Get the changed files from the response payload.
         const files = response.data.files || [];
         const all = [], added = [], modified = [], removed = [], renamed = [], addedModified = [];
+        const addedLines = {};
         for (const file of files) {
             const { filename: filenameOriginal, status } = file;
-            const filename = filenameOriginal.replace(options.pathPrefix, '');
+            // strip `coverage-path-prefix` only as a leading segment, a match in the
+            // middle of the path would key the file (and its added lines) wrongly
+            const filename = options.pathPrefix && filenameOriginal.startsWith(options.pathPrefix)
+                ? filenameOriginal.slice(options.pathPrefix.length)
+                : filenameOriginal;
             all.push(filename);
+            // github omits `patch` for binary and very large diffs
+            if (options.annotateMissingLines && file.patch) {
+                // full path, a file outside the prefix can share the stripped name
+                addedLines[filenameOriginal] = (0, annotations_1.getAddedLines)(file.patch);
+            }
             switch (status) {
                 case FILE_STATUSES.ADDED:
                     added.push(filename);
@@ -44377,7 +44469,7 @@ const getChangedFiles = async (options, pr_number) => {
                     break;
                 default:
                     // prettier-ignore
-                    core.setFailed(`One of your files includes an unsupported file status '${status}', expected ${Object.values(FILE_STATUSES).join(',')}.`);
+                    fail(`One of your files includes an unsupported file status '${status}', expected ${Object.values(FILE_STATUSES).join(',')}.`);
             }
         }
         core.info(`All: ${all.join(',')}`);
@@ -44394,10 +44486,13 @@ const getChangedFiles = async (options, pr_number) => {
             removed,
             renamed,
             AddedOrModified: addedModified,
+            addedLines,
         };
     }
     catch (error) {
-        core.setFailed(error.message);
+        // the caller may go on (annotations only), don't leave the group open
+        core.endGroup();
+        fail(error.message);
         return null;
     }
 };
@@ -44594,12 +44689,8 @@ const getNotSuccessTest = (options) => {
     return initData;
 };
 exports.getNotSuccessTest = getNotSuccessTest;
-// escape characters that are unsafe inside generated html
-const escapeHtml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 // truncate text with ellipsis when it exceeds the given length
 const truncateText = (text, maxLength) => text.length > maxLength ? `${text.slice(0, maxLength)}…` : text;
-// encode url-reserved characters in each path segment, keep `/` separators
-const encodePath = (path) => path.split('/').map(encodeURIComponent).join('/');
 // extract texts from <failure> or <error> node.
 // xml2js parses a node without attributes to a plain string,
 // otherwise to `{ $: { message }, _: 'body text' }` (both parts optional)
@@ -44735,7 +44826,7 @@ const toTestName = (test, options) => {
     const hasClassnamePrefix = classname && name.startsWith(classname);
     const mainText = truncateText(classname || name, MAX_TEST_NAME_LENGTH);
     const restText = classname && name !== classname
-        ? ` › ${escapeHtml(truncateText(hasClassnamePrefix ? name.slice(classname.length).trim() : name, Math.max(0, MAX_TEST_NAME_LENGTH - mainText.length)))}`
+        ? ` › ${(0, utils_1.escapeHtml)(truncateText(hasClassnamePrefix ? name.slice(classname.length).trim() : name, Math.max(0, MAX_TEST_NAME_LENGTH - mainText.length)))}`
         : '';
     const testFile = test.file
         ?.replace(/^file:\/\/\/([A-Za-z]:\/)/, '$1')
@@ -44749,19 +44840,19 @@ const toTestName = (test, options) => {
         : testFile;
     const cannotResolvePath = !relative ||
         (isAbsolutePath && ABSOLUTE_PATH_REGEX.test(relative)) ||
-        relative.split('/').includes('..');
+        (0, utils_1.hasParentSegment)(relative);
     if (!options.repoUrl ||
         !options.commit ||
         options.removeLinksToFiles ||
         cannotResolvePath) {
-        return `<b>${escapeHtml(mainText)}</b>${restText}`;
+        return `<b>${(0, utils_1.escapeHtml)(mainText)}</b>${restText}`;
     }
     const linkPath = isAbsolutePath
-        ? encodePath(relative)
-        : `${options.pathPrefix}${encodePath(relative)}`;
+        ? (0, utils_1.encodePath)(relative)
+        : `${options.pathPrefix}${(0, utils_1.encodePath)(relative)}`;
     const anchor = test.line && !options.removeLinksToLines ? `#L${test.line}` : '';
-    const href = escapeHtml(`${options.repoUrl}/blob/${options.commit}/${linkPath}${anchor}`).replace(/"/g, '&quot;');
-    return `<a href="${href}">${escapeHtml(mainText)}</a>${restText}`;
+    const href = (0, utils_1.escapeHtmlAttr)(`${options.repoUrl}/blob/${options.commit}/${linkPath}${anchor}`);
+    return `<a href="${href}">${(0, utils_1.escapeHtml)(mainText)}</a>${restText}`;
 };
 // convert failed tests to collapsed html block
 const failedTestsToMarkdown = (failedTests, options, title, maxFailedTests = options.maxFailedTests) => {
@@ -44778,12 +44869,12 @@ const failedTestsToMarkdown = (failedTests, options, title, maxFailedTests = opt
         const stripped = stripTracebackNoise(test.message) || test.message.trim();
         const message = formatFailureMessage(stripped);
         const reason = extractShortReason(stripped);
-        return `<details><summary>${toTestName(test, options)} — <code>${escapeHtml(reason)}</code></summary>\n\n${messageToDiffBlock(message)}\n\n</details>`;
+        return `<details><summary>${toTestName(test, options)} — <code>${(0, utils_1.escapeHtml)(reason)}</code></summary>\n\n${messageToDiffBlock(message)}\n\n</details>`;
     });
     if (failedTests.length > maxFailedTests) {
         entries.push((0, exports.moreFailedTestsNote)(failedTests.length - maxFailedTests));
     }
-    return `<details><summary>${emoji}${escapeHtml(summaryTitle)} (<b>${failedTests.length}</b>)</summary>\n\n${entries.join('\n')}\n\n</details>`;
+    return `<details><summary>${emoji}${(0, utils_1.escapeHtml)(summaryTitle)} (<b>${failedTests.length}</b>)</summary>\n\n${entries.join('\n')}\n\n</details>`;
 };
 exports.failedTestsToMarkdown = failedTestsToMarkdown;
 // convert summary from junitxml to md
@@ -44917,6 +45008,7 @@ const getMultipleReport = (options, maxFailedTests = options.maxFailedTests) => 
                 report = (0, parse_1.getCoverageReport)(internalOptions);
             }
             const summary = (0, junitXml_1.getParsedXml)(internalOptions);
+            const rowStarted = (report && report.html) || !!summary;
             if (report && report.html) {
                 table += `| ${l.title} | ${report.html}`;
                 if (i === 0) {
@@ -44966,16 +45058,18 @@ const getMultipleReport = (options, maxFailedTests = options.maxFailedTests) => 
             else if (summary) {
                 table += `| ${l.title} |  `;
             }
-            if (hasXmlReports && summary) {
-                const { errors, failures, skipped, tests, time } = summary;
-                const displayTime = time > 60
-                    ? `${(time / 60) | 0}m ${(time % 60) | 0}s`
-                    : `${time.toFixed(3)}s`;
-                const e = (emoji) => options.hideEmoji ? '' : ` ${emoji}`;
-                table += `| ${tests} | ${skipped}${e(':zzz:')} | ${failures}${e(':x:')} | ${errors}${e(':fire:')} | ${displayTime}${e(':stopwatch:')} |\n`;
-            }
-            else {
-                table += '\n';
+            if (rowStarted) {
+                if (hasXmlReports && summary) {
+                    const { errors, failures, skipped, tests, time } = summary;
+                    const displayTime = time > 60
+                        ? `${(time / 60) | 0}m ${(time % 60) | 0}s`
+                        : `${time.toFixed(3)}s`;
+                    const e = (emoji) => options.hideEmoji ? '' : ` ${emoji}`;
+                    table += `| ${tests} | ${skipped}${e(':zzz:')} | ${failures}${e(':x:')} | ${errors}${e(':fire:')} | ${displayTime}${e(':stopwatch:')} |\n`;
+                }
+                else {
+                    table += '\n';
+                }
             }
             // the summary attributes tell whether the file has failures at all,
             // so green files and files past the budget skip the second parse
@@ -45050,7 +45144,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.exportedForTesting = exports.toHtml = exports.getCoverageReport = void 0;
+exports.exportedForTesting = exports.toRelativePath = exports.toHtml = exports.getCoverageReport = void 0;
 const core = __importStar(__nccwpck_require__(7484));
 const utils_1 = __nccwpck_require__(1798);
 // return true if "coverage file" include all special words
@@ -45091,8 +45185,9 @@ const getCoverageReport = (options) => {
                 const html = (0, exports.toHtml)(content, options);
                 const total = getTotal(content);
                 const warnings = getWarnings(content);
-                const color = (0, utils_1.getCoverageColor)(total ? total.cover : '0');
-                return { html, coverage, color, warnings: warnings ?? 0 };
+                const color = (0, utils_1.getCoverageColor)(toBadgeCover(total ? total.cover : '0'));
+                const lines = parse(content) ?? [];
+                return { html, coverage, color, warnings: warnings ?? 0, lines };
             }
         }
         catch (error) {
@@ -45212,7 +45307,8 @@ const parse = (data) => {
 };
 // collapse all lines to folders structure
 const makeFolders = (coverage, options) => {
-    const folders = {};
+    // no prototype, a folder named e.g. `constructor` must not hit Object members
+    const folders = Object.create(null);
     for (const line of coverage) {
         const parts = line.name.replace(options.prefix, '').split('/');
         const folder = parts.slice(0, -1).join('/');
@@ -45221,6 +45317,9 @@ const makeFolders = (coverage, options) => {
     }
     return folders;
 };
+// report values are untrusted (e.g. from a fork PR), only a number may
+// reach the badge, other text could fake its message or color
+const toBadgeCover = (cover) => /^\d+(\.\d+)?%?$/.test(cover) ? cover : '0';
 // gets total coverage in percentage
 const getTotalCoverage = (data) => {
     const total = getTotal(data);
@@ -45234,10 +45333,11 @@ const toHtml = (data, options, dataFromXml = null) => {
     if (!total) {
         return '';
     }
-    const color = (0, utils_1.getCoverageColor)(total.cover);
     const onlyChanged = reportOnlyChangedFiles ? '\u2022 ' : '';
     const readmeHref = `${options.repoUrl}/blob/${options.commit}/README.md`;
-    const badge = `<img alt="${badgeTitle}" src="https://img.shields.io/badge/${badgeTitle}-${total.cover}25-${color}.svg" />`;
+    const cover = toBadgeCover(total.cover);
+    const color = (0, utils_1.getCoverageColor)(cover);
+    const badge = `<img alt="${badgeTitle}" src="https://img.shields.io/badge/${badgeTitle}-${cover}25-${color}.svg" />`;
     const badgeWithLink = removeLinkFromBadge
         ? badge
         : `<a href="${readmeHref}">${badge}</a>`;
@@ -45249,13 +45349,20 @@ const toHtml = (data, options, dataFromXml = null) => {
     const brpart = dataFromXml && total.brpart ? parseInt(total.brpart) : 0;
     const covered = stmts - miss + (branch - brpart);
     const totalCount = stmts + branch;
-    const textBadge = `${total.cover} (${covered}/${totalCount})`;
+    const textBadge = `${cover} (${covered}/${totalCount})`;
     const badgeContent = textInsteadBadge ? textBadge : badgeWithLink;
     const badgeHtml = hideBadge ? '' : badgeContent;
     const reportHtml = hideReport
         ? ''
         : `<details><summary>${title} ${onlyChanged}</summary>${table}</details>`;
-    return `${badgeHtml}${reportHtml}`;
+    if (!reportHtml) {
+        return badgeHtml;
+    }
+    // a line starting with an html comment is a raw html block, so github
+    // doesn't parse markdown in the table cells. The block ends with the line,
+    // so text after it (e.g. in a readme) still renders as markdown
+    const badgeLine = badgeHtml ? `<p>${badgeHtml}</p>` : '';
+    return `<!-- pytest-coverage-comment -->${badgeLine}${reportHtml}`;
 };
 exports.toHtml = toHtml;
 // make html table from coverage-file
@@ -45303,40 +45410,54 @@ const toHeadRow = (options) => {
     // prettier-ignore
     return `<tr><th>File</th><th>Stmts</th><th>Miss</th>${branchTh}<th>Cover</th>${missingTh}</tr>`;
 };
+// escape a report value for html text or attributes, a line break would
+// end the html block
+const escapeValue = (value) => (0, utils_1.escapeHtmlAttr)(String(value)).replace(/[\r\n]+/g, ' ');
 // make html row - tr
 const toRow = (item, indent = false, options) => {
     const { stmts, miss, cover } = item;
     const name = toFileNameTd(item, indent, options);
     const missing = toMissingTd(item, options);
     const branchTd = options.hasBranch
-        ? `<td>${item.branch || 0}</td><td>${item.brpart || 0}</td>`
+        ? `<td>${escapeValue(item.branch || 0)}</td><td>${escapeValue(item.brpart || 0)}</td>`
         : '';
     const missingTd = options.hasMissing ? `<td>${missing}</td>` : '';
     // prettier-ignore
-    return `<tr><td>${name}</td><td>${stmts}</td><td>${miss}</td>${branchTd}<td>${cover}</td>${missingTd}</tr>`;
+    return `<tr><td>${name}</td><td>${escapeValue(stmts)}</td><td>${escapeValue(miss)}</td>${branchTd}<td>${escapeValue(cover)}</td>${missingTd}</tr>`;
 };
 // make summary row - tr
 const toTotalRow = (item, options) => {
     const { name, stmts, miss, cover } = item;
     const branchTd = options.hasBranch
-        ? `<td><b>${item.branch || 0}</b></td>` +
-            `<td><b>${item.brpart || 0}</b></td>`
+        ? `<td><b>${escapeValue(item.branch || 0)}</b></td>` +
+            `<td><b>${escapeValue(item.brpart || 0)}</b></td>`
         : '';
     const missingTd = options.hasMissing ? '<td>&nbsp;</td>' : '';
     // prettier-ignore
-    return `<tr><td><b>${name}</b></td><td><b>${stmts}</b></td><td><b>${miss}</b></td>${branchTd}<td><b>${cover}</b></td>${missingTd}</tr>`;
+    return `<tr><td><b>${escapeValue(name)}</b></td><td><b>${escapeValue(stmts)}</b></td><td><b>${escapeValue(miss)}</b></td>${branchTd}<td><b>${escapeValue(cover)}</b></td>${missingTd}</tr>`;
+};
+// path of a report file relative to the workspace, with `/` separators
+// (windows reports use `\`, browsers treat it as `/` in links)
+const toRelativePath = (name, options) => name.replace(/\\/g, '/').replace(options.prefix.replace(/\\/g, '/'), '');
+exports.toRelativePath = toRelativePath;
+// link to a file of the report in the repo, null when it can't be linked safely
+const toFileHref = (name, options) => {
+    const relative = (0, exports.toRelativePath)(name, options);
+    return (0, utils_1.hasParentSegment)(relative)
+        ? null
+        : `${options.repoUrl}/blob/${options.commit}/${options.pathPrefix}${(0, utils_1.encodePath)(relative)}`;
 };
 // make fileName cell - td
 const toFileNameTd = (item, indent = false, options) => {
     const relative = item.name.replace(options.prefix, '');
-    const href = `${options.repoUrl}/blob/${options.commit}/${options.pathPrefix}${relative}`;
+    const href = toFileHref(item.name, options);
     const parts = relative.split('/');
     const last = parts[parts.length - 1];
     const space = indent ? '&nbsp; &nbsp;' : '';
-    const fileName = last.replace(/__/g, '\\_\\_');
-    return options.removeLinksToFiles
+    const fileName = escapeValue(last);
+    return options.removeLinksToFiles || !href
         ? `${space}${fileName}`
-        : `${space}<a href="${href}">${fileName}</a>`;
+        : `${space}<a href="${escapeValue(href)}">${fileName}</a>`;
 };
 // make folder row - tr
 const toFolderTd = (path, options) => {
@@ -45344,32 +45465,35 @@ const toFolderTd = (path, options) => {
         return '';
     }
     const colspan = 4 + (options.hasBranch ? 2 : 0) + (options.hasMissing ? 1 : 0);
-    return `<tr><td colspan="${colspan}"><b>${path}</b></td></tr>`;
+    return `<tr><td colspan="${colspan}"><b>${escapeValue(path)}</b></td></tr>`;
 };
 // make missing cell - td
 const toMissingTd = (item, options) => {
     if (!item.missing || !item.missing.length) {
         return '&nbsp;';
     }
+    const fileHref = toFileHref(item.name, options);
+    const removeLinks = options.removeLinksToLines || !fileHref;
     return item.missing
         .map((range) => {
-        const relative = item.name;
         // Partial branch, e.g. `158->182` or `158->exit`: link to the source
         // line and keep the arrow text as-is.
         if (range.includes('->')) {
             const [start] = range.split('->');
-            const href = `${options.repoUrl}/blob/${options.commit}/${options.pathPrefix}${relative}#L${start}`;
-            return options.removeLinksToLines
-                ? range
-                : `<a href="${href}">${range}</a>`;
+            const href = `${fileHref}#L${start}`;
+            // keep the arrow as coverage.py prints it, a bare `>` is safe in text
+            const text = range.split('->').map(escapeValue).join('->');
+            return removeLinks
+                ? text
+                : `<a href="${escapeValue(href)}">${text}</a>`;
         }
         const [start, end = start] = range.split('-');
         const fragment = start === end ? `L${start}` : `L${start}-L${end}`;
-        const href = `${options.repoUrl}/blob/${options.commit}/${options.pathPrefix}${relative}#${fragment}`;
-        const text = start === end ? start : `${start}&ndash;${end}`;
-        return options.removeLinksToLines
-            ? text
-            : `<a href="${href}">${text}</a>`;
+        const href = `${fileHref}#${fragment}`;
+        const text = start === end
+            ? escapeValue(start)
+            : `${escapeValue(start)}&ndash;${escapeValue(end)}`;
+        return removeLinks ? text : `<a href="${escapeValue(href)}">${text}</a>`;
     })
         .join(', ');
 };
@@ -45502,6 +45626,7 @@ const parseFile = (name, file, xmlSkipCovered) => {
         miss: summary.missing_lines.toString(),
         cover,
         missing: getMissing(file),
+        missingBranches: (file.missing_branches || []).map(([from, to]) => to < 0 ? `${from}->exit` : `${from}->${to}`),
     };
     if (numBranches > 0) {
         result.branch = numBranches.toString();
@@ -45550,7 +45675,7 @@ const getCoverageJsonReport = (options) => {
             };
             const html = (0, parse_1.toHtml)(null, options, dataFromXml);
             const color = (0, utils_1.getCoverageColor)(coverage.cover);
-            return { html, coverage, color };
+            return { html, coverage, color, lines: coverageObj };
         }
         return null;
     }
@@ -45709,7 +45834,7 @@ const getCoverageXmlReport = (options) => {
             };
             const html = (0, parse_1.toHtml)(null, options, dataFromXml);
             const color = (0, utils_1.getCoverageColor)(coverage ? coverage.cover : '0');
-            return { html, coverage, color };
+            return { html, coverage, color, lines: coverageObj };
         }
         return null;
     }
@@ -45833,19 +45958,14 @@ const parseLines = (lines) => {
             }
         }
     });
-    const missing = missingLines.reduce((arr, val, i, a) => {
-        if (!i || val !== a[i - 1] + 1)
-            arr.push([]);
-        arr[arr.length - 1].push(val);
-        return arr;
-    }, []);
+    const missing = (0, utils_1.toRuns)(missingLines);
     // Merge missing-line ranges and partial-branch arrows into a single list
     // ordered by line number, matching the order of `coverage report -m`.
     const missingEntries = [];
     missing.forEach((m) => {
         missingEntries.push({
             sort: m[0],
-            text: m.length === 1 ? `${m[0]}` : `${m[0]}-${m[m.length - 1]}`,
+            text: m[0] === m[1] ? `${m[0]}` : `${m[0]}-${m[1]}`,
         });
     });
     partialBranches.forEach(({ line, target }) => {
@@ -45989,7 +46109,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getCoverageColor = exports.getContent = exports.getContentFile = exports.getPathToFile = void 0;
+exports.toRuns = exports.getCoverageColor = exports.getContent = exports.hasParentSegment = exports.encodePath = exports.escapeHtmlAttr = exports.escapeHtml = exports.getContentFile = exports.getPathToFile = void 0;
 const fs = __importStar(__nccwpck_require__(9896));
 const path = __importStar(__nccwpck_require__(6928));
 const core = __importStar(__nccwpck_require__(7484));
@@ -46026,6 +46146,22 @@ const getContentFile = (pathToFile) => {
     return content;
 };
 exports.getContentFile = getContentFile;
+// escape characters that are unsafe inside generated html
+const escapeHtml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+exports.escapeHtml = escapeHtml;
+// escape a value placed inside a double-quoted html attribute
+const escapeHtmlAttr = (text) => (0, exports.escapeHtml)(text).replace(/"/g, '&quot;');
+exports.escapeHtmlAttr = escapeHtmlAttr;
+// url-encode each segment of a repo path for use in a link
+// (toWellFormed: a lone utf-16 surrogate makes encodeURIComponent throw)
+const encodePath = (path) => path
+    .split('/')
+    .map((segment) => encodeURIComponent(segment.toWellFormed()))
+    .join('/');
+exports.encodePath = encodePath;
+// a `..` segment would let a link leave the repo once the browser resolves it
+const hasParentSegment = (path) => path.split('/').includes('..');
+exports.hasParentSegment = hasParentSegment;
 const getContent = (filePath) => {
     try {
         const fullFilePath = (0, exports.getPathToFile)(filePath);
@@ -46070,6 +46206,26 @@ const getCoverageColor = (percentage) => {
     return (found || rangeColors[0]).color;
 };
 exports.getCoverageColor = getCoverageColor;
+// group sorted line numbers into consecutive runs, e.g. [4, 5, 9] -> [[4, 5], [9, 9]]
+const toRuns = (lines) => lines.reduce((runs, line) => {
+    const last = runs[runs.length - 1];
+    if (last && line === last[1] + 1) {
+        last[1] = line;
+    }
+    else {
+        runs.push([line, line]);
+    }
+    return runs;
+}, []);
+exports.toRuns = toRuns;
+
+
+/***/ }),
+
+/***/ 75:
+/***/ ((module) => {
+
+module.exports = eval("require")("supports-color");
 
 
 /***/ }),
